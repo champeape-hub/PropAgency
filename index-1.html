@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Khan Real Estate Agency</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#0F172A;min-height:100vh;}
+
+/* ── AUTH / VIEWER SCREENS ── */
+.auth-screen{
+  display:none;min-height:100vh;
+  background:linear-gradient(135deg,#1e3a8a,#2563EB);
+  align-items:center;justify-content:center;padding:16px;
+}
+.auth-screen.show{display:flex;}
+.auth-card{background:#fff;border-radius:20px;padding:40px 32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.auth-logo{text-align:center;margin-bottom:28px;}
+.auth-logo .icon{font-size:48px;display:block;margin-bottom:8px;}
+.auth-logo h1{font-size:22px;font-weight:800;color:#1e3a8a;}
+.auth-logo p{font-size:13px;color:#94A3B8;margin-top:4px;}
+.tab-row{display:flex;border-radius:12px;overflow:hidden;border:2px solid #E2E8F0;margin-bottom:24px;}
+.tab-btn{flex:1;padding:11px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:#F8FAFC;color:#64748B;transition:all 0.2s;}
+.tab-btn.active{background:#2563EB;color:#fff;}
+.fg{margin-bottom:16px;}
+.fg label{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:6px;letter-spacing:0.5px;text-transform:uppercase;}
+.fg input{display:block;width:100%;padding:11px 14px;border:2px solid #E2E8F0;border-radius:10px;font-size:14px;outline:none;transition:border-color 0.2s;background:#fff;color:#0F172A;}
+.fg input:focus{border-color:#2563EB;}
+.btn-auth{display:block;width:100%;padding:13px;background:#2563EB;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;margin-top:8px;transition:all 0.2s;letter-spacing:0.3px;}
+.btn-auth:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 4px 16px rgba(37,99,235,0.4);}
+.viewer-hint{text-align:center;margin-top:16px;font-size:12px;color:#94A3B8;}
+.viewer-hint a{color:#2563EB;cursor:pointer;font-weight:600;}
+
+/* ── APP ── */
+#appScreen{display:none;min-height:100vh;}
+.layout{display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+.sidebar{width:250px;background:linear-gradient(180deg,#1e3a8a,#2563EB);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sb-header{padding:22px 18px;border-bottom:1px solid rgba(255,255,255,0.12);}
+.sb-header h2{color:#fff;font-size:14px;font-weight:800;letter-spacing:0.3px;}
+.sb-header .agent{color:#93C5FD;font-size:11px;margin-top:4px;truncate:ellipsis;}
+.sb-header .role-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-top:6px;}
+.role-admin{background:#FEF3C7;color:#92400E;}
+.role-viewer{background:#DCFCE7;color:#166534;}
+.sb-nav{flex:1;padding:10px 8px;}
+.sb-btn{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;background:transparent;border:none;color:rgba(255,255,255,0.85);font-size:13px;font-weight:500;cursor:pointer;border-radius:10px;margin-bottom:2px;text-align:left;transition:all 0.15s;}
+.sb-btn:hover{background:rgba(255,255,255,0.1);color:#fff;}
+.sb-btn.active{background:rgba(255,255,255,0.18);color:#fff;font-weight:700;}
+.sb-btn .ico{font-size:15px;width:20px;text-align:center;}
+.sb-footer{padding:10px 8px;border-top:1px solid rgba(255,255,255,0.12);}
+
+/* MAIN */
+.main{flex:1;padding:28px;overflow:auto;}
+.page{display:none;}
+.page.active{display:block;}
+.pg-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.pg-header h1{font-size:20px;font-weight:800;color:#0F172A;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all 0.2s;}
+.btn:hover{opacity:0.88;transform:translateY(-1px);}
+.btn-blue{background:#2563EB;color:#fff;}
+.btn-green{background:#16A34A;color:#fff;}
+.btn-yellow{background:#D97706;color:#fff;padding:6px 12px;font-size:12px;}
+.btn-red{background:#DC2626;color:#fff;padding:6px 12px;font-size:12px;}
+.btn-gray{background:#F1F5F9;color:#475569;border:2px solid #E2E8F0;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-bottom:28px;}
+.stat{background:#fff;border-radius:14px;padding:18px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #F1F5F9;}
+.stat .num{font-size:30px;font-weight:800;}
+.stat .lbl{font-size:12px;color:#94A3B8;margin-top:4px;font-weight:500;}
+
+/* CARD */
+.card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border:1px solid #F1F5F9;}
+.search-wrap{margin-bottom:16px;}
+.search-wrap input{display:block;width:100%;padding:10px 16px;border:2px solid #E2E8F0;border-radius:10px;font-size:14px;outline:none;background:#fff;}
+.search-wrap input:focus{border-color:#2563EB;}
+
+/* LIST ITEM */
+.item{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid #F1F5F9;transition:box-shadow 0.2s;}
+.item:hover{box-shadow:0 4px 12px rgba(0,0,0,0.08);}
+.item-info h3{font-size:14px;font-weight:700;color:#0F172A;}
+.item-info p{font-size:12px;color:#64748B;margin-top:3px;}
+.item-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.wa-btn{display:inline-flex;align-items:center;gap:4px;background:#DCFCE7;color:#16A34A;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;transition:background 0.2s;}
+.wa-btn:hover{background:#BBF7D0;}
+
+/* PROPERTY CARDS */
+.prop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px;}
+.prop-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07);border:1px solid #F1F5F9;transition:box-shadow 0.2s;}
+.prop-card:hover{box-shadow:0 8px 24px rgba(0,0,0,0.1);}
+.prop-imgs{display:flex;gap:4px;padding:10px;background:#F8FAFC;flex-wrap:wrap;}
+.prop-img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid #E2E8F0;}
+.prop-body{padding:14px;}
+.prop-title{font-size:15px;font-weight:800;color:#0F172A;}
+.prop-price{font-size:14px;font-weight:700;color:#16A34A;margin-top:4px;}
+.prop-desc{font-size:12px;color:#64748B;margin-top:6px;line-height:1.5;}
+.prop-actions{display:flex;gap:8px;padding:0 14px 14px;}
+
+/* FOLLOW-UP BADGES */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.b-overdue{background:#FEE2E2;color:#DC2626;}
+.b-today{background:#FEF3C7;color:#D97706;}
+.b-upcoming{background:#DCFCE7;color:#16A34A;}
+
+/* COMMISSION TOTAL */
+.comm-box{background:linear-gradient(135deg,#DCFCE7,#BBF7D0);border-radius:14px;padding:18px 22px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;border:1px solid #86EFAC;}
+.comm-box .label{font-size:14px;font-weight:700;color:#166534;}
+.comm-box .amount{font-size:24px;font-weight:800;color:#16A34A;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.modal-hdr h2{font-size:17px;font-weight:800;}
+.modal-close{background:none;border:none;font-size:26px;cursor:pointer;color:#94A3B8;line-height:1;padding:0 4px;}
+.modal-close:hover{color:#DC2626;}
+.mfg{margin-bottom:14px;}
+.mfg label{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;letter-spacing:0.3px;text-transform:uppercase;}
+.mfg input,.mfg select,.mfg textarea{display:block;width:100%;padding:10px 13px;border:2px solid #E2E8F0;border-radius:10px;font-size:14px;outline:none;background:#fff;color:#0F172A;transition:border-color 0.2s;}
+.mfg input:focus,.mfg select:focus,.mfg textarea:focus{border-color:#2563EB;}
+.mfg input[readonly]{background:#F0FDF4;color:#16A34A;font-weight:700;border-color:#BBF7D0;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid #F1F5F9;}
+
+/* TOAST */
+#toast{position:fixed;top:22px;right:22px;z-index:999;min-width:260px;max-width:340px;padding:13px 18px;border-radius:12px;font-size:14px;font-weight:600;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.15);}
+.toast-ok{background:#DCFCE7;color:#166534;border-left:4px solid #16A34A;}
+.toast-err{background:#FEE2E2;color:#991B1B;border-left:4px solid #DC2626;}
+
+/* EMPTY */
+.empty{text-align:center;padding:50px 20px;color:#CBD5E1;}
+.empty .eico{font-size:40px;margin-bottom:10px;}
+.empty p{font-size:14px;}
+
+/* MOBILE TOP BAR */
+.mob-bar{display:none;background:linear-gradient(90deg,#1e3a8a,#2563EB);padding:12px 16px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:35;}
+.mob-bar button{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;}
+.mob-bar span{color:#fff;font-weight:800;font-size:14px;}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:39;}
+
+/* VIEWER NOTICE */
+.viewer-notice{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:2px solid #BFDBFE;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:13px;color:#1e40af;font-weight:600;}
+
+@media(max-width:768px){
+  .layout{flex-direction:column;}
+  .sidebar{position:fixed;left:-260px;top:0;height:100vh;width:250px;z-index:40;transition:left 0.3s;}
+  .sidebar.open{left:0;}
+  .sidebar-overlay.open{display:block;}
+  .mob-bar{display:flex;}
+  .main{padding:16px;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .prop-grid{grid-template-columns:1fr;}
+  .pg-header{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TOAST ═══════════════════ -->
+<div id="toast"></div>
+
+<!-- ═══════════════════ LANDING (choose role) ═══════════════════ -->
+<div class="auth-screen show" id="landingScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="icon">🏠</span>
+      <h1>Khan Real Estate Agency</h1>
+      <p>Select how you want to access</p>
+    </div>
+    <button onclick="showAdminLogin()" class="btn-auth" style="margin-bottom:14px;">
+      🔐 Admin Login
+    </button>
+    <button onclick="showViewerLogin()" class="btn-auth" style="background:#0F172A;">
+      👁️ View as Team Member
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════ ADMIN LOGIN ═══════════════════ -->
+<div class="auth-screen" id="adminScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="icon">🔐</span>
+      <h1>Admin Login</h1>
+      <p>Khan Real Estate Agency</p>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" id="tabLi" onclick="switchTab('login')">Login</button>
+      <button class="tab-btn" id="tabRg" onclick="switchTab('register')">Register</button>
+    </div>
+    <!-- Login -->
+    <div id="loginPane">
+      <div class="fg"><label>Email</label><input id="liEmail" type="email" placeholder="admin@example.com"/></div>
+      <div class="fg"><label>Password</label><input id="liPass" type="password" placeholder="••••••••"/></div>
+      <button onclick="doLogin()" class="btn-auth">Login as Admin</button>
+    </div>
+    <!-- Register -->
+    <div id="regPane" style="display:none;">
+      <div class="fg"><label>Full Name</label><input id="rgName" type="text" placeholder="Muhammad Khan"/></div>
+      <div class="fg"><label>Email</label><input id="rgEmail" type="email" placeholder="admin@example.com"/></div>
+      <div class="fg"><label>Phone</label><input id="rgPhone" type="text" placeholder="03001234567"/></div>
+      <div class="fg"><label>Password (min 6)</label><input id="rgPass" type="password" placeholder="••••••••"/></div>
+      <button onclick="doRegister()" class="btn-auth">Create Admin Account</button>
+    </div>
+    <p class="viewer-hint"><a onclick="showLanding()">← Back</a></p>
+  </div>
+</div>
+
+<!-- ═══════════════════ VIEWER PASSWORD ═══════════════════ -->
+<div class="auth-screen" id="viewerScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="icon">👁️</span>
+      <h1>Team Access</h1>
+      <p>Enter password to view records</p>
+    </div>
+    <div class="fg"><label>Team Password</label><input id="viewerPass" type="password" placeholder="Enter team password"/></div>
+    <button onclick="doViewerLogin()" class="btn-auth">View Records</button>
+    <p class="viewer-hint"><a onclick="showLanding()">← Back</a></p>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN APP ═══════════════════ -->
+<div id="appScreen">
+  <!-- Mobile bar -->
+  <div class="mob-bar">
+    <button onclick="toggleSidebar()">☰</button>
+    <span>🏠 Khan Real Estate</span>
+    <button onclick="doLogout()" style="font-size:13px;">Exit</button>
+  </div>
+  <div class="sidebar-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sb-header">
+        <h2>🏠 Khan Real Estate</h2>
+        <div class="agent" id="agentLabel">Loading...</div>
+        <div id="roleBadge" class="role-badge"></div>
+      </div>
+      <nav class="sb-nav">
+        <button class="sb-btn active" id="nl-dashboard"   onclick="goTo('dashboard')">  <span class="ico">📊</span><span class="lbl" data-en="Dashboard"   data-ur="ڈیش بورڈ">Dashboard</span></button>
+        <button class="sb-btn"        id="nl-clients"     onclick="goTo('clients')">    <span class="ico">👥</span><span class="lbl" data-en="Clients"     data-ur="کلائنٹس">Clients</span></button>
+        <button class="sb-btn"        id="nl-sellers"     onclick="goTo('sellers')">    <span class="ico">🏷️</span><span class="lbl" data-en="Sellers"     data-ur="بیچنے والے">Sellers</span></button>
+        <button class="sb-btn"        id="nl-buyers"      onclick="goTo('buyers')">     <span class="ico">🛒</span><span class="lbl" data-en="Buyers"      data-ur="خریدار">Buyers</span></button>
+        <button class="sb-btn"        id="nl-agents"      onclick="goTo('agents')">     <span class="ico">🧑‍💼</span><span class="lbl" data-en="Agents"      data-ur="ایجنٹس">Agents</span></button>
+        <button class="sb-btn"        id="nl-properties"  onclick="goTo('properties')"> <span class="ico">🏘️</span><span class="lbl" data-en="Properties"  data-ur="پراپرٹیز">Properties</span></button>
+        <button class="sb-btn"        id="nl-followups"   onclick="goTo('followups')">  <span class="ico">📅</span><span class="lbl" data-en="Follow-Ups"  data-ur="فالو اپ">Follow-Ups</span></button>
+        <button class="sb-btn"        id="nl-commissions" onclick="goTo('commissions')"><span class="ico">💰</span><span class="lbl" data-en="Commissions" data-ur="کمیشن">Commissions</span></button>
+      </nav>
+      <div class="sb-footer">
+        <button class="sb-btn" onclick="toggleLang()"><span class="ico">🌐</span><span id="langLbl">اردو</span></button>
+        <button class="sb-btn" onclick="doLogout()"><span class="ico">🚪</span><span class="lbl" data-en="Exit" data-ur="نکلیں">Exit</span></button>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+
+      <!-- ── DASHBOARD ── -->
+      <div class="page active" id="page-dashboard">
+        <div class="pg-header"><h1 class="lbl" data-en="Dashboard" data-ur="ڈیش بورڈ">Dashboard</h1></div>
+        <div class="stats">
+          <div class="stat"><div class="num" style="color:#2563EB" id="st-clients">0</div><div class="lbl" data-en="Clients" data-ur="کلائنٹس">Clients</div></div>
+          <div class="stat"><div class="num" style="color:#7C3AED" id="st-sellers">0</div><div class="lbl" data-en="Sellers" data-ur="بیچنے والے">Sellers</div></div>
+          <div class="stat"><div class="num" style="color:#16A34A" id="st-buyers">0</div><div class="lbl"  data-en="Buyers"  data-ur="خریدار">Buyers</div></div>
+          <div class="stat"><div class="num" style="color:#0891B2" id="st-agents">0</div><div class="lbl"  data-en="Agents"  data-ur="ایجنٹس">Agents</div></div>
+          <div class="stat"><div class="num" style="color:#D97706" id="st-properties">0</div><div class="lbl" data-en="Properties" data-ur="پراپرٹیز">Properties</div></div>
+          <div class="stat"><div class="num" style="color:#DC2626" id="st-followups">0</div><div class="lbl" data-en="Follow-Ups" data-ur="فالو اپ">Follow-Ups</div></div>
+        </div>
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:800;margin-bottom:16px;" class="lbl" data-en="Recent Follow-Ups" data-ur="حالیہ فالو اپ">Recent Follow-Ups</h2>
+          <div id="dash-fu"></div>
+        </div>
+      </div>
+
+      <!-- ── CLIENTS ── -->
+      <div class="page" id="page-clients">
+        <div class="pg-header">
+          <h1 class="lbl" data-en="Clients" data-ur="کلائنٹس">Clients</h1>
+          <button class="btn btn-blue admin-only" onclick="openModal('clients')">+ <span class="lbl" data-en="Add Client" data-ur="کلائنٹ شامل کریں">Add Client</span></button>
+        </div>
+        <div class="search-wrap"><input id="srch-clients" placeholder="Search name or phone..." oninput="renderList('clients')"/></div>
+        <div id="list-clients"></div>
+      </div>
+
+      <!-- ── SELLERS ── -->
+      <div class="page" id="page-sellers">
+        <div class="pg-header">
+          <h1 class="lbl" data-en="Sellers" data-ur="بیچنے والے">Sellers</h1>
+          <button class="btn btn-blue admin-only" onclick="openModal('sellers')">+ <span class="lbl" data-en="Add Seller" data-ur="بیچنے والا شامل کریں">Add Seller</span></button>
+        </div>
+        <div class="search-wrap"><input id="srch-sellers" placeholder="Search name or phone..." oninput="renderList('sellers')"/></div>
+        <div id="list-sellers"></div>
+      </div>
+
+      <!-- ── BUYERS ── -->
+      <div class="page" id="page-buyers">
+        <div class="pg-header">
+          <h1 class="lbl" data-en="Buyers" data-ur="خریدار">Buyers</h1>
+          <button class="btn btn-blue admin-only" onclick="openModal('buyers')">+ <span class="lbl" data-en="Add Buyer" data-ur="خریدار شامل کریں">Add Buyer</span></button>
+        </div>
+        <div class="search-wrap"><input id="srch-buyers" placeholder="Search name or phone..." oninput="renderList('buyers')"/></div>
+        <div id="list-buyers"></div>
+      </div>
+
+      <!-- ── AGENTS ── -->
+      <div class="page" id="page-agents">
+        <div class="pg-header">
+          <h1 class="lbl" data-en="Agents" data-ur="ایجنٹس">Agents</h1>
+          <button class="btn btn-blue admin-only" onclick="openModal('agents')">+ <span class="lbl" data-en="Add Agent" data-ur="ایجنٹ شامل کریں">Add Agent</span></button>
+        </div>
+        <div class="search-wrap"><input id="srch-agents" placeholder="Search name or phone..." oninput="renderList('agents')"/></div>
+        <div id="list-agents"></div>
+      </div>
+
+      <!-- ── PROPERTIES ── -->
+      <div class="page" id="page-properties">
+        <div class="pg-header">
+          <h1 class="lbl" data-en="Properties" data-ur="پراپرٹیز">Properties</h1>
+          <button class="btn btn-blue admin-only" onclick="openModal('properties')">+ <span class="lbl" data-en="Add Property" data-ur="پراپرٹی شامل کریں">Add Property</span></button>
+        </div>
+        <div class="search-wrap"><input id="srch-properties" placeholder="Search title..." oninput="renderList('properties')"/></div>
+        <div class="prop-grid" id="list-properties"></div>
+      </div>
+
+      <!-- ── FOLLOW-UPS ── -->
+      <div class="page" id="page-followups">
+        <div class="pg-header">
+          <h1 class="lbl" data-en="Follow-Ups" data-ur="فالو اپ">Follow-Ups</h1>
+          <button class="btn btn-blue admin-only" onclick="openModal('followups')">+ <span class="lbl" data-en="Add Follow-Up" data-ur="فالو اپ شامل کریں">Add Follow-Up</span></button>
+        </div>
+        <div id="list-followups"></div>
+      </div>
+
+      <!-- ── COMMISSIONS ── -->
+      <div class="page" id="page-commissions">
+        <div class="pg-header">
+          <h1 class="lbl" data-en="Commissions" data-ur="کمیشن">Commissions</h1>
+          <button class="btn btn-blue admin-only" onclick="openModal('commissions')">+ <span class="lbl" data-en="Add Commission" data-ur="کمیشن شامل کریں">Add Commission</span></button>
+        </div>
+        <div class="comm-box">
+          <span class="label lbl" data-en="Total Commission Earned" data-ur="کل کمیشن">Total Commission Earned</span>
+          <span class="amount" id="totalComm">PKR 0</span>
+        </div>
+        <div id="list-commissions"></div>
+      </div>
+
+    </div><!-- end main -->
+  </div><!-- end layout -->
+</div><!-- end appScreen -->
+
+<!-- ═══════════════════ MODAL ═══════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <h2 id="modalTitle">Add</h2>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ SCRIPT ═══════════════════ -->
+<script>
+// ══════════════════════════════════════════
+//  FIREBASE INIT
+// ══════════════════════════════════════════
+const FB = {
+  apiKey: "AIzaSyBZATsu-WMW6Y-YMcUL4bnGAytoCX-TCq0",
+  authDomain: "khan-real-estate-86fee.firebaseapp.com",
+  projectId: "khan-real-estate-86fee",
+  storageBucket: "khan-real-estate-86fee.firebasestorage.app",
+  messagingSenderId: "238319550149",
+  appId: "1:238319550149:web:51e5db9c1d1c6c3b16faac"
+};
+firebase.initializeApp(FB);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+const stor = firebase.storage();
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+// ⚠️ CHANGE THIS PASSWORD for viewer access
+const VIEWER_PASSWORD = "khan2024";
+
+let currentUser  = null;
+let isAdmin      = false;
+let isViewer     = false;
+let currentLang  = 'en';
+let editId       = null;
+let editType     = null;
+let saving       = false;
+let unsubs       = [];
+let localData    = { clients:[], sellers:[], buyers:[], agents:[], properties:[], followups:[], commissions:[] };
+
+// ══════════════════════════════════════════
+//  AUTH STATE
+// ══════════════════════════════════════════
+auth.onAuthStateChanged(function(u) {
+  if (u) {
+    currentUser = u;
+    isAdmin  = true;
+    isViewer = false;
+    enterApp();
+  } else if (isViewer) {
+    // viewer already set — keep app open
+  } else {
+    showLanding();
+  }
+});
+
+// ══════════════════════════════════════════
+//  SCREEN HELPERS
+// ══════════════════════════════════════════
+function hideAllScreens() {
+  document.getElementById('landingScreen').classList.remove('show');
+  document.getElementById('adminScreen').classList.remove('show');
+  document.getElementById('viewerScreen').classList.remove('show');
+  document.getElementById('appScreen').style.display = 'none';
+}
+function showLanding() {
+  hideAllScreens();
+  document.getElementById('landingScreen').classList.add('show');
+}
+function showAdminLogin() {
+  hideAllScreens();
+  document.getElementById('adminScreen').classList.add('show');
+}
+function showViewerLogin() {
+  hideAllScreens();
+  document.getElementById('viewerScreen').classList.add('show');
+}
+
+// ══════════════════════════════════════════
+//  ADMIN AUTH TABS
+// ══════════════════════════════════════════
+function switchTab(tab) {
+  document.getElementById('loginPane').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('regPane').style.display   = tab === 'register' ? 'block' : 'none';
+  document.getElementById('tabLi').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRg').classList.toggle('active', tab === 'register');
+}
+
+// ══════════════════════════════════════════
+//  ADMIN LOGIN / REGISTER
+// ══════════════════════════════════════════
+async function doLogin() {
+  var email = document.getElementById('liEmail').value.trim();
+  var pass  = document.getElementById('liPass').value;
+  if (!email || !pass) return toast('Please fill all fields', 'err');
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch(e) { toast(e.message, 'err'); }
+}
+
+async function doRegister() {
+  var name  = document.getElementById('rgName').value.trim();
+  var email = document.getElementById('rgEmail').value.trim();
+  var phone = document.getElementById('rgPhone').value.trim();
+  var pass  = document.getElementById('rgPass').value;
+  if (!name||!email||!phone||!pass) return toast('Please fill all fields','err');
+  if (pass.length < 6) return toast('Password minimum 6 characters','err');
+  try {
+    var c = await auth.createUserWithEmailAndPassword(email, pass);
+    await db.collection('adminProfile').doc(c.user.uid).set({ name, email, phone, createdAt: new Date() });
+    toast('Admin account created!','ok');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+// ══════════════════════════════════════════
+//  VIEWER LOGIN
+// ══════════════════════════════════════════
+function doViewerLogin() {
+  var pass = document.getElementById('viewerPass').value;
+  if (pass === VIEWER_PASSWORD) {
+    isViewer = true;
+    isAdmin  = false;
+    enterApp();
+  } else {
+    toast('Wrong password!', 'err');
+    document.getElementById('viewerPass').value = '';
+  }
+}
+
+// ══════════════════════════════════════════
+//  ENTER APP
+// ══════════════════════════════════════════
+function enterApp() {
+  hideAllScreens();
+  document.getElementById('appScreen').style.display = 'block';
+
+  // Set role label
+  var badge = document.getElementById('roleBadge');
+  if (isAdmin) {
+    badge.textContent = '👑 Admin';
+    badge.className   = 'role-badge role-admin';
+    document.getElementById('agentLabel').textContent = currentUser ? currentUser.email : 'Admin';
+  } else {
+    badge.textContent = '👁️ Viewer';
+    badge.className   = 'role-badge role-viewer';
+    document.getElementById('agentLabel').textContent = 'Team Member';
+  }
+
+  // Show/hide admin-only elements
+  document.querySelectorAll('.admin-only').forEach(function(el) {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+
+  subscribeAll();
+  goTo('dashboard');
+}
+
+// ══════════════════════════════════════════
+//  LOGOUT
+// ══════════════════════════════════════════
+function doLogout() {
+  unsubs.forEach(function(fn){ fn(); });
+  unsubs = [];
+  localData = { clients:[], sellers:[], buyers:[], agents:[], properties:[], followups:[], commissions:[] };
+  isAdmin  = false;
+  isViewer = false;
+  currentUser = null;
+  auth.signOut();
+  showLanding();
+}
+
+// ══════════════════════════════════════════
+//  LOAD ADMIN NAME
+// ══════════════════════════════════════════
+async function loadAdminName() {
+  if (!currentUser) return;
+  try {
+    var d = await db.collection('adminProfile').doc(currentUser.uid).get();
+    if (d.exists) document.getElementById('agentLabel').textContent = d.data().name;
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════
+//  FIRESTORE SUBSCRIPTIONS (admin only writes, both read)
+// ══════════════════════════════════════════
+function subscribeAll() {
+  unsubs.forEach(function(fn){ fn(); });
+  unsubs = [];
+
+  // For viewer: we read from admin's collection
+  // Admin uid stored in Firestore — for viewer we load all docs under any user
+  // Simple approach: admin saves under their uid, viewer reads same path
+  // But viewer doesn't know admin uid — so we use a fixed top-level collection per type
+
+  var cols = ['clients','sellers','buyers','agents','properties','followups','commissions'];
+  cols.forEach(function(col) {
+    var ref = db.collection('kre_' + col).orderBy('createdAt','desc');
+    var u = ref.onSnapshot(function(snap) {
+      localData[col] = snap.docs.map(function(d){ return Object.assign({ id: d.id }, d.data()); });
+      renderList(col);
+      updateStats();
+      if (col === 'followups')   renderDashFollowups();
+      if (col === 'commissions') updateTotalComm();
+    }, function(err){ console.error(col, err); });
+    unsubs.push(u);
+  });
+
+  if (isAdmin) loadAdminName();
+}
+
+// ══════════════════════════════════════════
+//  NAVIGATE
+// ══════════════════════════════════════════
+function goTo(pg) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.sb-btn').forEach(function(b){ b.classList.remove('active'); });
+  var pg_el = document.getElementById('page-' + pg);
+  var nl_el = document.getElementById('nl-' + pg);
+  if (pg_el) pg_el.classList.add('active');
+  if (nl_el) nl_el.classList.add('active');
+  closeSidebar();
+}
+
+// ══════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════
+function updateStats() {
+  document.getElementById('st-clients').textContent    = localData.clients.length;
+  document.getElementById('st-sellers').textContent    = localData.sellers.length;
+  document.getElementById('st-buyers').textContent     = localData.buyers.length;
+  document.getElementById('st-agents').textContent     = localData.agents.length;
+  document.getElementById('st-properties').textContent = localData.properties.length;
+  document.getElementById('st-followups').textContent  = localData.followups.length;
+}
+
+function updateTotalComm() {
+  var t = localData.commissions.reduce(function(s,c){ return s + (parseFloat(c.amount)||0); }, 0);
+  document.getElementById('totalComm').textContent = 'PKR ' + t.toLocaleString();
+}
+
+// ══════════════════════════════════════════
+//  RENDER LISTS
+// ══════════════════════════════════════════
+function renderList(type) {
+  var srch  = document.getElementById('srch-' + type);
+  var q     = srch ? srch.value.toLowerCase() : '';
+  var items = localData[type].slice();
+
+  if (q) {
+    items = items.filter(function(i){
+      return (i.name||i.title||'').toLowerCase().includes(q) ||
+             (i.phone||'').toLowerCase().includes(q);
+    });
+  }
+
+  var c = document.getElementById('list-' + type);
+  if (!c) return;
+
+  if (!items.length) {
+    c.innerHTML = '<div class="empty"><div class="eico">📭</div><p>No records found.</p></div>';
+    return;
+  }
+
+  var editDeleteBtns = isAdmin;
+
+  if (['clients','sellers','buyers','agents'].includes(type)) {
+    c.innerHTML = items.map(function(i){
+      var phone = (i.phone||'').replace(/^0/,'');
+      var actions = editDeleteBtns
+        ? '<button class="btn btn-yellow" onclick="openModal(\''+type+'\',\''+i.id+'\')">✏️ Edit</button><button class="btn btn-red" onclick="delItem(\''+type+'\',\''+i.id+'\')">🗑️ Delete</button>'
+        : '<span style="font-size:11px;color:#94A3B8;">View only</span>';
+      return '<div class="item"><div class="item-info"><h3>'+esc(i.name)+'</h3><p>📱 '+esc(i.phone)+(i.address?' · 📍'+esc(i.address):'')+'</p></div><div class="item-actions"><a class="wa-btn" href="https://wa.me/92'+phone+'" target="_blank">💬 WhatsApp</a>'+actions+'</div></div>';
+    }).join('');
+  }
+
+  else if (type === 'properties') {
+    c.innerHTML = items.map(function(i){
+      var photos = (i.photos && i.photos.length)
+        ? '<div class="prop-imgs">'+i.photos.map(function(u){ return '<img src="'+u+'" class="prop-img" onerror="this.style.display=\'none\'">'; }).join('')+'</div>'
+        : '';
+      var actions = editDeleteBtns
+        ? '<div class="prop-actions"><button class="btn btn-yellow" onclick="openModal(\'properties\',\''+i.id+'\')">✏️ Edit</button><button class="btn btn-red" onclick="delItem(\'properties\',\''+i.id+'\')">🗑️ Delete</button></div>'
+        : '';
+      return '<div class="prop-card">'+photos+'<div class="prop-body"><div class="prop-title">'+esc(i.title)+'</div><div class="prop-price">PKR '+parseFloat(i.price||0).toLocaleString()+'</div>'+(i.description?'<div class="prop-desc">'+esc(i.description)+'</div>':'')+'</div>'+actions+'</div>';
+    }).join('');
+  }
+
+  else if (type === 'followups') {
+    c.innerHTML = items.map(function(i){
+      var st = fuStatus(i.date);
+      var bc = st==='Overdue'?'b-overdue':st==='Today'?'b-today':'b-upcoming';
+      var actions = editDeleteBtns
+        ? '<button class="btn btn-yellow" onclick="openModal(\'followups\',\''+i.id+'\')">✏️ Edit</button><button class="btn btn-red" onclick="delItem(\'followups\',\''+i.id+'\')">🗑️ Delete</button>'
+        : '<span style="font-size:11px;color:#94A3B8;">View only</span>';
+      return '<div class="item"><div class="item-info"><h3>'+esc(i.type)+' <span class="badge '+bc+'">'+st+'</span></h3><p>📅 '+i.date+(i.note?' · '+esc(i.note):'')+'</p></div><div class="item-actions">'+actions+'</div></div>';
+    }).join('');
+  }
+
+  else if (type === 'commissions') {
+    c.innerHTML = items.map(function(i){
+      var amt = parseFloat(i.amount)||0;
+      var actions = editDeleteBtns
+        ? '<button class="btn btn-yellow" onclick="openModal(\'commissions\',\''+i.id+'\')">✏️ Edit</button><button class="btn btn-red" onclick="delItem(\'commissions\',\''+i.id+'\')">🗑️ Delete</button><button class="btn btn-green" onclick="exportSinglePDF(\''+i.id+'\')">📄 PDF</button>'
+        : '<span style="font-size:11px;color:#94A3B8;">View only</span>';
+      return '<div class="item"><div class="item-info"><h3>'+esc(i.clientName)+'</h3><p>'+esc(i.propertyTitle)+' · Rate: '+i.rate+'% · <strong style="color:#16A34A">PKR '+amt.toLocaleString()+'</strong></p></div><div class="item-actions">'+actions+'</div></div>';
+    }).join('');
+  }
+}
+
+function renderDashFollowups() {
+  var c = document.getElementById('dash-fu');
+  if (!c) return;
+  if (!localData.followups.length) { c.innerHTML = '<div class="empty"><div class="eico">📅</div><p>No follow-ups yet.</p></div>'; return; }
+  c.innerHTML = localData.followups.slice(0,6).map(function(i){
+    var st = fuStatus(i.date);
+    var bc = st==='Overdue'?'b-overdue':st==='Today'?'b-today':'b-upcoming';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F8FAFC;flex-wrap:wrap;"><span class="badge '+bc+'">'+st+'</span><span style="font-size:13px;font-weight:700;">'+esc(i.type)+'</span><span style="font-size:12px;color:#94A3B8;">'+i.date+'</span><span style="font-size:12px;color:#64748B;">'+esc(i.note||'')+'</span></div>';
+  }).join('');
+}
+
+function fuStatus(dateStr) {
+  var today = new Date(); today.setHours(0,0,0,0);
+  var d = new Date(dateStr); d.setHours(0,0,0,0);
+  if (d < today) return 'Overdue';
+  if (d.getTime() === today.getTime()) return 'Today';
+  return 'Upcoming';
+}
+
+// ══════════════════════════════════════════
+//  MODAL FORMS
+// ══════════════════════════════════════════
+var FORMS = {
+  clients:     { title:'Client',     fields:[{id:'name',lbl:'Full Name',type:'text',req:true},{id:'phone',lbl:'Phone (03001234567)',type:'text',req:true},{id:'address',lbl:'Address',type:'text'}] },
+  sellers:     { title:'Seller',     fields:[{id:'name',lbl:'Full Name',type:'text',req:true},{id:'phone',lbl:'Phone',type:'text',req:true},{id:'address',lbl:'Address',type:'text'}] },
+  buyers:      { title:'Buyer',      fields:[{id:'name',lbl:'Full Name',type:'text',req:true},{id:'phone',lbl:'Phone',type:'text',req:true},{id:'address',lbl:'Address',type:'text'}] },
+  agents:      { title:'Agent',      fields:[{id:'name',lbl:'Full Name',type:'text',req:true},{id:'phone',lbl:'Phone',type:'text',req:true},{id:'address',lbl:'Address',type:'text'}] },
+  properties:  { title:'Property',   fields:[{id:'title',lbl:'Title',type:'text',req:true},{id:'price',lbl:'Price (PKR)',type:'number',req:true},{id:'description',lbl:'Description',type:'textarea'},{id:'photos',lbl:'Photos (max 10)',type:'file'}] },
+  followups:   { title:'Follow-Up',  fields:[{id:'type',lbl:'Type',type:'select',opts:['Call','Visit','Meeting','Email','Other'],req:true},{id:'date',lbl:'Date',type:'date',req:true},{id:'note',lbl:'Note',type:'textarea'}] },
+  commissions: { title:'Commission', fields:[{id:'clientName',lbl:'Client Name',type:'text',req:true},{id:'propertyTitle',lbl:'Property Title',type:'text',req:true},{id:'price',lbl:'Total Deal Amount (PKR)',type:'number',req:true},{id:'rate',lbl:'Commission %',type:'number',req:true},{id:'amount',lbl:'Commission Amount (auto)',type:'text',ro:true}] }
+};
+
+function openModal(type, id) {
+  if (!isAdmin) return;
+  editType = type;
+  editId   = id || null;
+  var cfg  = FORMS[type];
+  var ex   = id ? localData[type].find(function(x){ return x.id === id; }) : null;
+  document.getElementById('modalTitle').textContent = (id ? 'Edit ' : 'Add ') + cfg.title;
+
+  var html = '';
+  cfg.fields.forEach(function(f){
+    var val = ex ? (ex[f.id]||'') : '';
+    html += '<div class="mfg"><label>'+f.lbl+(f.req?' *':'')+'</label>';
+    if (f.type === 'textarea') {
+      html += '<textarea id="mf_'+f.id+'" rows="3">'+esc(val)+'</textarea>';
+    } else if (f.type === 'select') {
+      html += '<select id="mf_'+f.id+'">'+f.opts.map(function(o){ return '<option value="'+o+'"'+(val===o?' selected':'')+'>'+o+'</option>'; }).join('')+'</select>';
+    } else if (f.type === 'file') {
+      html += '<input type="file" id="mf_'+f.id+'" accept="image/*" multiple/>';
+      if (ex && ex.photos && ex.photos.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+        ex.photos.forEach(function(u){ html += '<img src="'+u+'" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:2px solid #E2E8F0;">'; });
+        html += '</div>';
+      }
+    } else {
+      html += '<input type="'+f.type+'" id="mf_'+f.id+'" value="'+esc(val)+'"'+(f.ro?' readonly':'')+'/>';
+    }
+    html += '</div>';
+  });
+
+  html += '<div class="modal-footer"><button class="btn btn-gray" onclick="closeModal()">Cancel</button><button class="btn btn-blue" onclick="saveItem()">💾 Save</button></div>';
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('open');
+
+  // Commission auto-calc
+  if (type === 'commissions') {
+    setTimeout(function(){
+      var pEl = document.getElementById('mf_price');
+      var rEl = document.getElementById('mf_rate');
+      var aEl = document.getElementById('mf_amount');
+      if (!pEl||!rEl||!aEl) return;
+      function calc(){
+        var p = parseFloat(pEl.value)||0;
+        var r = parseFloat(rEl.value)||0;
+        aEl.value = 'PKR ' + (p*r/100).toLocaleString();
+      }
+      pEl.addEventListener('input', calc);
+      rEl.addEventListener('input', calc);
+      calc();
+    }, 60);
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editId = null; editType = null;
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// ══════════════════════════════════════════
+//  SAVE ITEM
+// ══════════════════════════════════════════
+async function saveItem() {
+  if (!isAdmin) return;
+  if (saving) return;
+  saving = true;
+
+  var type = editType;
+  var cfg  = FORMS[type];
+  var d    = {};
+  var ok   = true;
+
+  for (var i=0; i<cfg.fields.length; i++) {
+    var f = cfg.fields[i];
+    if (f.type === 'file') continue;
+    var el = document.getElementById('mf_'+f.id);
+    if (!el) continue;
+    var v = el.value.trim();
+    if (f.req && !v) { toast(f.lbl+' is required','err'); ok=false; break; }
+    d[f.id] = v;
+  }
+
+  if (!ok) { saving=false; return; }
+
+  // Duplicate check
+  if (!editId) {
+    var nameKey = (type==='properties') ? 'title' : 'name';
+    var nv = (d[nameKey]||'').toLowerCase();
+    var np = d.phone||'';
+    var dup = localData[type].some(function(item){
+      if (type==='properties') return (item.title||'').toLowerCase()===nv;
+      return (item.name||'').toLowerCase()===nv && item.phone===np;
+    });
+    if (dup) { toast('Duplicate entry already exists!','err'); saving=false; return; }
+  }
+
+  // Commission amount
+  if (type==='commissions') {
+    d.amount = String(((parseFloat(d.price)||0)*(parseFloat(d.rate)||0)/100).toFixed(0));
+  }
+
+  // Photo upload
+  var fi = document.getElementById('mf_photos');
+  if (fi && fi.files.length > 0) {
+    toast('Uploading photos...','ok');
+    try {
+      var files = Array.from(fi.files).slice(0,10);
+      var urls  = await Promise.all(files.map(async function(file){
+        var ref = stor.ref('kre_photos/'+Date.now()+'_'+file.name);
+        await ref.put(file);
+        return ref.getDownloadURL();
+      }));
+      var exPhotos = editId ? ((localData.properties.find(function(p){ return p.id===editId; })||{}).photos||[]) : [];
+      d.photos = exPhotos.concat(urls).slice(0,10);
+    } catch(e) { toast('Upload failed: '+e.message,'err'); saving=false; return; }
+  } else if (editId && type==='properties') {
+    var exP = localData.properties.find(function(p){ return p.id===editId; });
+    d.photos = exP ? (exP.photos||[]) : [];
+  }
+
+  d.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+  if (!editId) d.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+
+  try {
+    var col = db.collection('kre_'+type);
+    if (editId) await col.doc(editId).update(d);
+    else        await col.add(d);
+    toast('Saved successfully! ✅','ok');
+    closeModal();
+  } catch(e) { toast('Error: '+e.message,'err'); }
+
+  saving = false;
+}
+
+// ══════════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════════
+async function delItem(type, id) {
+  if (!isAdmin) return;
+  if (!confirm('Delete this record? This cannot be undone.')) return;
+  try {
+    await db.collection('kre_'+type).doc(id).delete();
+    toast('Deleted!','ok');
+  } catch(e) { toast('Error: '+e.message,'err'); }
+}
+
+// ══════════════════════════════════════════
+//  PDF EXPORT
+// ══════════════════════════════════════════
+function exportSinglePDF(id) {
+  var c = localData.commissions.find(function(x){ return x.id===id; });
+  if (!c) return;
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF();
+
+  // Header
+  doc.setFillColor(37,99,235);
+  doc.rect(0,0,210,40,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(20); doc.setFont(undefined,'bold');
+  doc.text('Khan Real Estate Agency',14,18);
+  doc.setFontSize(11); doc.setFont(undefined,'normal');
+  doc.text('Commission Receipt',14,30);
+  doc.text('Date: '+new Date().toLocaleDateString(),150,30);
+
+  // Body
+  doc.setTextColor(0,0,0);
+  var y = 56;
+  function row(label, value, color) {
+    doc.setFillColor(248,250,252);
+    doc.rect(14,y-5,182,10,'F');
+    doc.setFontSize(11); doc.setFont(undefined,'bold');
+    doc.setTextColor(71,85,105);
+    doc.text(label, 16, y);
+    doc.setFont(undefined,'normal');
+    if (color) doc.setTextColor(22,163,74);
+    else doc.setTextColor(15,23,42);
+    doc.text(String(value), 100, y);
+    doc.setTextColor(0,0,0);
+    y += 14;
+  }
+
+  row('Client Name:',    c.clientName||'');
+  row('Property:',       c.propertyTitle||'');
+  row('Deal Amount:',    'PKR '+parseFloat(c.price||0).toLocaleString());
+  row('Commission Rate:', (c.rate||0)+'%');
+  row('Commission Amount:', 'PKR '+parseFloat(c.amount||0).toLocaleString(), true);
+
+  // Footer
+  y += 10;
+  doc.setFillColor(220,252,231);
+  doc.rect(14,y-5,182,14,'F');
+  doc.setFontSize(13); doc.setFont(undefined,'bold');
+  doc.setTextColor(22,163,74);
+  doc.text('Net Commission: PKR '+parseFloat(c.amount||0).toLocaleString(), 16, y+4);
+
+  y += 30;
+  doc.setFontSize(9); doc.setFont(undefined,'normal');
+  doc.setTextColor(148,163,184);
+  doc.text('Khan Real Estate Agency — Generated on '+new Date().toLocaleString(), 14, y);
+
+  doc.save('Commission_'+esc(c.clientName||'record')+'_'+Date.now()+'.pdf');
+  toast('PDF downloaded!','ok');
+}
+
+// ══════════════════════════════════════════
+//  LANGUAGE TOGGLE
+// ══════════════════════════════════════════
+function toggleLang() {
+  currentLang = currentLang==='en' ? 'ur' : 'en';
+  document.getElementById('langLbl').textContent = currentLang==='en' ? 'اردو' : 'English';
+  document.querySelectorAll('.lbl').forEach(function(el){
+    var v = el.getAttribute('data-'+currentLang);
+    if (v) el.textContent = v;
+  });
+}
+
+// ══════════════════════════════════════════
+//  MOBILE SIDEBAR
+// ══════════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sbOverlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sbOverlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  t.className = type==='ok' ? 'toast-ok' : 'toast-err';
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.style.display='none'; }, 3500);
+}
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

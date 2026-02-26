@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Khan Real Estate Agency</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#F8FAFC;color:#0F172A;min-height:100vh;}
+
+/* ===== AUTH ===== */
+#authScreen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;
+  background:linear-gradient(135deg,#2563EB,#1e40af);
+  padding:16px;
+}
+.auth-card{
+  background:#fff;border-radius:16px;padding:36px 32px;
+  width:100%;max-width:420px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.18);
+}
+.auth-logo{text-align:center;margin-bottom:24px;}
+.auth-logo h1{font-size:24px;font-weight:700;color:#2563EB;}
+.auth-logo p{font-size:13px;color:#94A3B8;margin-top:4px;}
+.tab-row{display:flex;border-radius:10px;overflow:hidden;margin-bottom:24px;border:1.5px solid #E2E8F0;}
+.tab-btn{flex:1;padding:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:#F1F5F9;color:#64748B;transition:all 0.2s;}
+.tab-btn.active{background:#2563EB;color:#fff;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:6px;}
+.form-group input{
+  display:block;width:100%;padding:10px 14px;border:1.5px solid #CBD5E1;
+  border-radius:8px;font-size:14px;outline:none;
+  transition:border-color 0.2s;background:#fff;color:#0F172A;
+}
+.form-group input:focus{border-color:#2563EB;}
+.btn-full{
+  display:block;width:100%;padding:12px;background:#2563EB;color:#fff;
+  border:none;border-radius:8px;font-size:15px;font-weight:700;
+  cursor:pointer;margin-top:8px;transition:opacity 0.2s;
+}
+.btn-full:hover{opacity:0.88;}
+
+/* ===== APP ===== */
+#appScreen{display:none;min-height:100vh;}
+.app-layout{display:flex;min-height:100vh;}
+
+/* Sidebar */
+.sidebar{
+  width:240px;min-height:100vh;background:#2563EB;
+  display:flex;flex-direction:column;flex-shrink:0;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.sidebar-header{padding:20px 16px;border-bottom:1px solid rgba(255,255,255,0.15);}
+.sidebar-header h2{color:#fff;font-size:15px;font-weight:700;}
+.sidebar-header p{color:#BFDBFE;font-size:12px;margin-top:3px;}
+.sidebar-nav{padding:10px 8px;flex:1;}
+.nav-btn{
+  display:flex;align-items:center;gap:10px;
+  width:100%;padding:11px 14px;
+  background:transparent;border:none;
+  color:#fff;font-size:14px;font-weight:500;
+  cursor:pointer;border-radius:8px;margin-bottom:2px;
+  text-align:left;transition:background 0.15s;
+}
+.nav-btn:hover{background:rgba(255,255,255,0.12);}
+.nav-btn.active{background:rgba(255,255,255,0.22);font-weight:700;}
+.nav-btn .icon{font-size:16px;width:22px;text-align:center;}
+.sidebar-footer{padding:10px 8px;border-top:1px solid rgba(255,255,255,0.15);}
+
+/* Main Content */
+.main-content{flex:1;padding:24px;overflow:auto;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* Page Header */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.page-header h1{font-size:22px;font-weight:700;color:#0F172A;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity 0.2s;}
+.btn:hover{opacity:0.85;}
+.btn-primary{background:#2563EB;color:#fff;}
+.btn-success{background:#16A34A;color:#fff;}
+.btn-warning{background:#D97706;color:#fff;padding:6px 12px;font-size:12px;}
+.btn-danger{background:#DC2626;color:#fff;padding:6px 12px;font-size:12px;}
+
+/* Card */
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.07);padding:20px;}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:#fff;border-radius:12px;padding:16px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+.stat-num{font-size:28px;font-weight:700;}
+.stat-label{font-size:12px;color:#94A3B8;margin-top:4px;}
+
+/* Search */
+.search-box{margin-bottom:16px;}
+.search-box input{display:block;width:100%;padding:10px 14px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:14px;outline:none;background:#fff;}
+.search-box input:focus{border-color:#2563EB;}
+
+/* List Items */
+.list-item{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.item-info h3{font-size:14px;font-weight:600;color:#0F172A;}
+.item-info p{font-size:12px;color:#64748B;margin-top:2px;}
+.item-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.wa-link{color:#16A34A;font-size:12px;font-weight:600;text-decoration:none;}
+.wa-link:hover{text-decoration:underline;}
+
+/* Property */
+.prop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.prop-card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.07);overflow:hidden;}
+.prop-body{padding:14px 14px 8px;}
+.prop-title{font-size:15px;font-weight:700;}
+.prop-price{color:#16A34A;font-weight:700;font-size:14px;margin-top:4px;}
+.prop-desc{color:#64748B;font-size:12px;margin-top:6px;}
+.prop-photos{display:flex;gap:6px;padding:8px 14px;flex-wrap:wrap;}
+.prop-photo{width:68px;height:68px;object-fit:cover;border-radius:6px;border:1.5px solid #E2E8F0;}
+.prop-actions{display:flex;gap:8px;padding:8px 14px 14px;}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-overdue{background:#FEE2E2;color:#DC2626;}
+.badge-today{background:#FEF3C7;color:#D97706;}
+.badge-upcoming{background:#DCFCE7;color:#16A34A;}
+
+/* Commission total */
+.comm-total{background:#DCFCE7;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.comm-total-label{font-size:14px;font-weight:600;color:#166534;}
+.comm-total-val{color:#16A34A;font-size:20px;font-weight:700;}
+
+/* Modal */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.5);z-index:100;
+  align-items:center;justify-content:center;padding:16px;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:#fff;border-radius:14px;padding:28px;
+  width:100%;max-width:500px;
+  max-height:90vh;overflow-y:auto;
+}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.modal-header h2{font-size:18px;font-weight:700;}
+.modal-close{background:none;border:none;font-size:28px;cursor:pointer;color:#94A3B8;line-height:1;padding:0;}
+.modal-close:hover{color:#0F172A;}
+.mf-group{margin-bottom:14px;}
+.mf-group label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:5px;}
+.mf-group input,.mf-group select,.mf-group textarea{
+  display:block;width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;
+  border-radius:8px;font-size:14px;outline:none;background:#fff;color:#0F172A;
+}
+.mf-group input:focus,.mf-group select:focus,.mf-group textarea:focus{border-color:#2563EB;}
+.mf-group input[readonly]{background:#F8FAFC;color:#16A34A;font-weight:600;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.btn-cancel{padding:9px 20px;border-radius:8px;border:1.5px solid #CBD5E1;background:#fff;color:#475569;font-weight:600;cursor:pointer;}
+.btn-cancel:hover{background:#F8FAFC;}
+
+/* Alert */
+#alertBox{
+  position:fixed;top:20px;right:20px;z-index:999;
+  min-width:260px;max-width:340px;
+  padding:12px 18px;border-radius:10px;
+  font-size:14px;font-weight:500;
+  display:none;box-shadow:0 4px 12px rgba(0,0,0,0.12);
+}
+.alert-success{background:#DCFCE7;color:#16A34A;border-left:4px solid #16A34A;}
+.alert-error{background:#FEE2E2;color:#DC2626;border-left:4px solid #DC2626;}
+
+/* Empty */
+.empty{text-align:center;padding:40px;color:#94A3B8;font-size:14px;}
+
+/* Mobile */
+@media(max-width:700px){
+  .app-layout{flex-direction:column;}
+  .sidebar{width:100%;min-height:auto;height:auto;position:sticky;top:0;z-index:40;}
+  .sidebar-nav{display:flex;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;padding:6px;gap:4px;}
+  .nav-btn{flex-shrink:0;padding:7px 10px;font-size:11px;gap:3px;}
+  .nav-btn .icon{display:none;}
+  .sidebar-footer{display:flex;flex-direction:row;gap:4px;padding:6px;}
+  .sidebar-footer .nav-btn{flex:1;justify-content:center;}
+  .main-content{padding:14px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .auth-card{padding:24px 18px;}
+  .prop-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div id="alertBox"></div>
+
+<!-- ==================== AUTH ==================== -->
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>🏠 Khan Real Estate</h1>
+      <p>Agent Portal</p>
+    </div>
+    <div class="tab-row">
+      <button class="tab-btn active" id="tabLogin" onclick="showTab('login')">Login</button>
+      <button class="tab-btn" id="tabRegister" onclick="showTab('register')">Register</button>
+    </div>
+
+    <div id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="agent@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="Enter password"/>
+      </div>
+      <button class="btn-full" onclick="doLogin()">Login</button>
+    </div>
+
+    <div id="registerForm" style="display:none;">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="regName" placeholder="Muhammad Khan"/>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="agent@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" id="regPhone" placeholder="03001234567"/>
+      </div>
+      <div class="form-group">
+        <label>Password (min 6 characters)</label>
+        <input type="password" id="regPass" placeholder="Enter password"/>
+      </div>
+      <button class="btn-full" onclick="doRegister()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="appScreen">
+  <div class="app-layout">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h2>🏠 Khan Real Estate</h2>
+        <p id="agentName">Loading...</p>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" id="nav-dashboard"   onclick="navigate('dashboard')">  <span class="icon">📊</span><span class="lbl" data-en="Dashboard"   data-ur="ڈیش بورڈ">Dashboard</span></button>
+        <button class="nav-btn"        id="nav-clients"     onclick="navigate('clients')">    <span class="icon">👥</span><span class="lbl" data-en="Clients"     data-ur="کلائنٹس">Clients</span></button>
+        <button class="nav-btn"        id="nav-sellers"     onclick="navigate('sellers')">    <span class="icon">🏷️</span><span class="lbl" data-en="Sellers"     data-ur="بیچنے والے">Sellers</span></button>
+        <button class="nav-btn"        id="nav-buyers"      onclick="navigate('buyers')">     <span class="icon">🛒</span><span class="lbl" data-en="Buyers"      data-ur="خریدار">Buyers</span></button>
+        <button class="nav-btn"        id="nav-properties"  onclick="navigate('properties')"> <span class="icon">🏘️</span><span class="lbl" data-en="Properties"  data-ur="پراپرٹیز">Properties</span></button>
+        <button class="nav-btn"        id="nav-followups"   onclick="navigate('followups')">  <span class="icon">📅</span><span class="lbl" data-en="Follow-Ups"  data-ur="فالو اپ">Follow-Ups</span></button>
+        <button class="nav-btn"        id="nav-commissions" onclick="navigate('commissions')"><span class="icon">💰</span><span class="lbl" data-en="Commissions" data-ur="کمیشن">Commissions</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-btn" onclick="toggleLang()">🌐 <span id="langLabel">اردو</span></button>
+        <button class="nav-btn" onclick="doLogout()">🚪 <span class="lbl" data-en="Logout" data-ur="لاگ آوٹ">Logout</span></button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="main-content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header"><h1 class="lbl" data-en="Dashboard" data-ur="ڈیش بورڈ">Dashboard</h1></div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-num" style="color:#2563EB" id="s-clients">0</div><div class="stat-label lbl" data-en="Clients" data-ur="کلائنٹس">Clients</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#7C3AED" id="s-sellers">0</div><div class="stat-label lbl" data-en="Sellers" data-ur="بیچنے والے">Sellers</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#16A34A" id="s-buyers">0</div><div class="stat-label lbl" data-en="Buyers" data-ur="خریدار">Buyers</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#D97706" id="s-properties">0</div><div class="stat-label lbl" data-en="Properties" data-ur="پراپرٹیز">Properties</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#DC2626" id="s-followups">0</div><div class="stat-label lbl" data-en="Follow-Ups" data-ur="فالو اپ">Follow-Ups</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:#16A34A" id="s-commissions">0</div><div class="stat-label lbl" data-en="Commissions" data-ur="کمیشن">Commissions</div></div>
+        </div>
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:700;margin-bottom:14px;" class="lbl" data-en="Recent Follow-Ups" data-ur="حالیہ فالو اپ">Recent Follow-Ups</h2>
+          <div id="dash-followups"><p style="color:#94A3B8;font-size:13px;">No follow-ups yet.</p></div>
+        </div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div class="page" id="page-clients">
+        <div class="page-header">
+          <h1 class="lbl" data-en="Clients" data-ur="کلائنٹس">Clients</h1>
+          <button class="btn btn-primary" onclick="openModal('clients')">+ Add Client</button>
+        </div>
+        <div class="search-box"><input id="search-clients" placeholder="Search name or phone..." oninput="renderList('clients')"/></div>
+        <div id="list-clients"></div>
+      </div>
+
+      <!-- SELLERS -->
+      <div class="page" id="page-sellers">
+        <div class="page-header">
+          <h1 class="lbl" data-en="Sellers" data-ur="بیچنے والے">Sellers</h1>
+          <button class="btn btn-primary" onclick="openModal('sellers')">+ Add Seller</button>
+        </div>
+        <div class="search-box"><input id="search-sellers" placeholder="Search name or phone..." oninput="renderList('sellers')"/></div>
+        <div id="list-sellers"></div>
+      </div>
+
+      <!-- BUYERS -->
+      <div class="page" id="page-buyers">
+        <div class="page-header">
+          <h1 class="lbl" data-en="Buyers" data-ur="خریدار">Buyers</h1>
+          <button class="btn btn-primary" onclick="openModal('buyers')">+ Add Buyer</button>
+        </div>
+        <div class="search-box"><input id="search-buyers" placeholder="Search name or phone..." oninput="renderList('buyers')"/></div>
+        <div id="list-buyers"></div>
+      </div>
+
+      <!-- PROPERTIES -->
+      <div class="page" id="page-properties">
+        <div class="page-header">
+          <h1 class="lbl" data-en="Properties" data-ur="پراپرٹیز">Properties</h1>
+          <button class="btn btn-primary" onclick="openModal('properties')">+ Add Property</button>
+        </div>
+        <div class="search-box"><input id="search-properties" placeholder="Search title..." oninput="renderList('properties')"/></div>
+        <div class="prop-grid" id="list-properties"></div>
+      </div>
+
+      <!-- FOLLOW-UPS -->
+      <div class="page" id="page-followups">
+        <div class="page-header">
+          <h1 class="lbl" data-en="Follow-Ups" data-ur="فالو اپ">Follow-Ups</h1>
+          <button class="btn btn-primary" onclick="openModal('followups')">+ Add Follow-Up</button>
+        </div>
+        <div id="list-followups"></div>
+      </div>
+
+      <!-- COMMISSIONS -->
+      <div class="page" id="page-commissions">
+        <div class="page-header">
+          <h1 class="lbl" data-en="Commissions" data-ur="کمیشن">Commissions</h1>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-success" onclick="exportPDF()">📄 Export PDF</button>
+            <button class="btn btn-primary" onclick="openModal('commissions')">+ Add</button>
+          </div>
+        </div>
+        <div class="comm-total">
+          <span class="comm-total-label lbl" data-en="Total Commission" data-ur="کل کمیشن">Total Commission</span>
+          <span class="comm-total-val" id="totalComm">PKR 0</span>
+        </div>
+        <div id="list-commissions"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL ==================== -->
+<div class="modal-overlay" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add</h2>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ===== FIREBASE INIT =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBZATsu-WMW6Y-YMcUL4bnGAytoCX-TCq0",
+  authDomain: "khan-real-estate-86fee.firebaseapp.com",
+  projectId: "khan-real-estate-86fee",
+  storageBucket: "khan-real-estate-86fee.firebasestorage.app",
+  messagingSenderId: "238319550149",
+  appId: "1:238319550149:web:51e5db9c1d1c6c3b16faac"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+const stor = firebase.storage();
+
+// ===== STATE =====
+let currentUser = null;
+let lang = 'en';
+let data = { clients:[], sellers:[], buyers:[], properties:[], followups:[], commissions:[] };
+let editId   = null;
+let editType = null;
+let unsubs   = [];
+
+// ===== AUTH =====
+auth.onAuthStateChanged(u => {
+  if (u) {
+    currentUser = u;
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display  = 'block';
+    loadName();
+    subscribeAll();
+    navigate('dashboard');
+  } else {
+    currentUser = null;
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display  = 'none';
+    unsubs.forEach(fn => fn());
+    unsubs = [];
+  }
+});
+
+function showTab(tab) {
+  document.getElementById('loginForm').style.display    = (tab === 'login')    ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = (tab === 'register') ? 'block' : 'none';
+  document.getElementById('tabLogin').classList.toggle('active',    tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if (!email || !pass) return showAlert('Please fill all fields', 'error');
+  try { await auth.signInWithEmailAndPassword(email, pass); }
+  catch(e) { showAlert(e.message, 'error'); }
+}
+
+async function doRegister() {
+  const name  = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  if (!name||!email||!phone||!pass) return showAlert('Please fill all fields','error');
+  if (pass.length < 6) return showAlert('Password min 6 characters','error');
+  try {
+    const c = await auth.createUserWithEmailAndPassword(email, pass);
+    await db.collection('agentProfiles').doc(c.user.uid).set({ name, email, phone });
+    showAlert('Account created successfully!','success');
+  } catch(e) { showAlert(e.message,'error'); }
+}
+
+function doLogout() { auth.signOut(); }
+
+async function loadName() {
+  try {
+    const d = await db.collection('agentProfiles').doc(currentUser.uid).get();
+    document.getElementById('agentName').textContent = d.exists ? d.data().name : currentUser.email;
+  } catch(e) {
+    document.getElementById('agentName').textContent = currentUser.email;
+  }
+}
+
+// ===== REALTIME SUBSCRIPTIONS =====
+function subscribeAll() {
+  ['clients','sellers','buyers','properties','followups','commissions'].forEach(col => {
+    const u = db.collection('users').doc(currentUser.uid).collection(col)
+      .orderBy('createdAt','desc')
+      .onSnapshot(snap => {
+        data[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderList(col);
+        updateStats();
+        if (col === 'followups')   renderDashFollowups();
+        if (col === 'commissions') updateTotal();
+      }, err => console.error(col, err));
+    unsubs.push(u);
+  });
+}
+
+// ===== NAVIGATE =====
+function navigate(pg) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + pg).classList.add('active');
+  document.getElementById('nav-'  + pg).classList.add('active');
+}
+
+// ===== STATS =====
+function updateStats() {
+  document.getElementById('s-clients').textContent     = data.clients.length;
+  document.getElementById('s-sellers').textContent     = data.sellers.length;
+  document.getElementById('s-buyers').textContent      = data.buyers.length;
+  document.getElementById('s-properties').textContent  = data.properties.length;
+  document.getElementById('s-followups').textContent   = data.followups.length;
+  document.getElementById('s-commissions').textContent = data.commissions.length;
+}
+
+function updateTotal() {
+  const t = data.commissions.reduce((s,c) => s + (parseFloat(c.amount)||0), 0);
+  document.getElementById('totalComm').textContent = 'PKR ' + t.toLocaleString();
+}
+
+// ===== RENDER =====
+function renderList(type) {
+  const el  = document.getElementById('search-' + type);
+  const q   = el ? el.value.toLowerCase() : '';
+  let items = data[type];
+  if (q) {
+    items = items.filter(i =>
+      (i.name||i.title||'').toLowerCase().includes(q) ||
+      (i.phone||'').toLowerCase().includes(q)
+    );
+  }
+  const c = document.getElementById('list-' + type);
+  if (!c) return;
+  if (!items.length) { c.innerHTML = '<div class="empty">No records found.</div>'; return; }
+
+  if (['clients','sellers','buyers'].includes(type)) {
+    c.innerHTML = items.map(i => `
+      <div class="list-item">
+        <div class="item-info">
+          <h3>${esc(i.name)}</h3>
+          <p>${esc(i.phone)}${i.address ? ' · ' + esc(i.address) : ''}</p>
+        </div>
+        <div class="item-actions">
+          <a class="wa-link" href="https://wa.me/92${(i.phone||'').replace(/^0/,'')}" target="_blank">💬 WhatsApp</a>
+          <button class="btn btn-warning" onclick="openModal('${type}','${i.id}')">Edit</button>
+          <button class="btn btn-danger"  onclick="delItem('${type}','${i.id}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  else if (type === 'properties') {
+    c.innerHTML = items.map(i => `
+      <div class="prop-card">
+        <div class="prop-body">
+          <div class="prop-title">${esc(i.title)}</div>
+          <div class="prop-price">PKR ${parseFloat(i.price||0).toLocaleString()}</div>
+          ${i.description ? `<div class="prop-desc">${esc(i.description)}</div>` : ''}
+        </div>
+        ${i.photos && i.photos.length ? `<div class="prop-photos">${i.photos.map(u=>`<img src="${u}" class="prop-photo" onerror="this.style.display='none'">`).join('')}</div>` : ''}
+        <div class="prop-actions">
+          <button class="btn btn-warning" onclick="openModal('properties','${i.id}')">Edit</button>
+          <button class="btn btn-danger"  onclick="delItem('properties','${i.id}')">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+
+  else if (type === 'followups') {
+    c.innerHTML = items.map(i => {
+      const st = fStatus(i.date);
+      const bc = st==='Overdue'?'badge-overdue':st==='Today'?'badge-today':'badge-upcoming';
+      return `
+      <div class="list-item">
+        <div class="item-info">
+          <h3>${esc(i.type)} <span class="badge ${bc}">${st}</span></h3>
+          <p>${i.date}${i.note ? ' · ' + esc(i.note) : ''}</p>
+        </div>
+        <div class="item-actions">
+          <button class="btn btn-warning" onclick="openModal('followups','${i.id}')">Edit</button>
+          <button class="btn btn-danger"  onclick="delItem('followups','${i.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  else if (type === 'commissions') {
+    c.innerHTML = items.map(i => {
+      const amt = parseFloat(i.amount)||0;
+      return `
+      <div class="list-item">
+        <div class="item-info">
+          <h3>${esc(i.clientName)}</h3>
+          <p>${esc(i.propertyTitle)} · Rate: ${i.rate}% · <strong style="color:#16A34A">PKR ${amt.toLocaleString()}</strong></p>
+        </div>
+        <div class="item-actions">
+          <button class="btn btn-warning" onclick="openModal('commissions','${i.id}')">Edit</button>
+          <button class="btn btn-danger"  onclick="delItem('commissions','${i.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderDashFollowups() {
+  const c = document.getElementById('dash-followups');
+  if (!data.followups.length) { c.innerHTML = '<p style="color:#94A3B8;font-size:13px;">No follow-ups yet.</p>'; return; }
+  c.innerHTML = data.followups.slice(0,5).map(i => {
+    const st = fStatus(i.date);
+    const bc = st==='Overdue'?'badge-overdue':st==='Today'?'badge-today':'badge-upcoming';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F1F5F9;flex-wrap:wrap;">
+      <span class="badge ${bc}">${st}</span>
+      <span style="font-size:13px;font-weight:600;">${esc(i.type)}</span>
+      <span style="font-size:12px;color:#94A3B8;">${i.date}</span>
+      <span style="font-size:12px;color:#64748B;">${esc(i.note||'')}</span>
+    </div>`;
+  }).join('');
+}
+
+function fStatus(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr); d.setHours(0,0,0,0);
+  if (d < today) return 'Overdue';
+  if (d.getTime() === today.getTime()) return 'Today';
+  return 'Upcoming';
+}
+
+// ===== MODAL FORMS =====
+const FORMS = {
+  clients:     { title:'Client',     fields:[{id:'name',label:'Full Name',type:'text',req:true},{id:'phone',label:'Phone (e.g. 03001234567)',type:'text',req:true},{id:'address',label:'Address',type:'text'}] },
+  sellers:     { title:'Seller',     fields:[{id:'name',label:'Full Name',type:'text',req:true},{id:'phone',label:'Phone',type:'text',req:true},{id:'address',label:'Address',type:'text'}] },
+  buyers:      { title:'Buyer',      fields:[{id:'name',label:'Full Name',type:'text',req:true},{id:'phone',label:'Phone',type:'text',req:true},{id:'address',label:'Address',type:'text'}] },
+  properties:  { title:'Property',   fields:[{id:'title',label:'Title',type:'text',req:true},{id:'price',label:'Price (PKR)',type:'number',req:true},{id:'description',label:'Description',type:'textarea'},{id:'photos',label:'Photos (max 10)',type:'file'}] },
+  followups:   { title:'Follow-Up',  fields:[{id:'type',label:'Type',type:'select',opts:['Call','Visit','Meeting','Email','Other'],req:true},{id:'date',label:'Date',type:'date',req:true},{id:'note',label:'Note',type:'textarea'}] },
+  commissions: { title:'Commission', fields:[{id:'clientName',label:'Client Name',type:'text',req:true},{id:'propertyTitle',label:'Property Title',type:'text',req:true},{id:'price',label:'Sale Price (PKR)',type:'number',req:true},{id:'rate',label:'Commission Rate (%)',type:'number',req:true},{id:'amount',label:'Commission Amount (auto-calculated)',type:'text',readonly:true}] }
+};
+
+function openModal(type, id) {
+  editType = type;
+  editId   = id || null;
+  const cfg = FORMS[type];
+  const ex  = id ? data[type].find(x => x.id === id) : null;
+  document.getElementById('modalTitle').textContent = (id ? 'Edit ' : 'Add ') + cfg.title;
+
+  let html = '';
+  cfg.fields.forEach(f => {
+    const val = ex ? (ex[f.id] || '') : '';
+    html += '<div class="mf-group"><label>' + f.label + (f.req?' *':'') + '</label>';
+    if (f.type === 'textarea') {
+      html += '<textarea id="mf_' + f.id + '" rows="3">' + esc(val) + '</textarea>';
+    } else if (f.type === 'select') {
+      html += '<select id="mf_' + f.id + '">' + f.opts.map(o=>'<option value="'+o+'"'+(val===o?' selected':'')+'>'+o+'</option>').join('') + '</select>';
+    } else if (f.type === 'file') {
+      html += '<input type="file" id="mf_' + f.id + '" accept="image/*" multiple/>';
+      if (ex && ex.photos && ex.photos.length) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+        ex.photos.forEach(u => { html += '<img src="'+u+'" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1.5px solid #E2E8F0;">'; });
+        html += '</div>';
+      }
+    } else {
+      const ro = f.readonly ? ' readonly' : '';
+      html += '<input type="' + f.type + '" id="mf_' + f.id + '" value="' + esc(val) + '"' + ro + '/>';
+    }
+    html += '</div>';
+  });
+
+  html += '<div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveItem()">Save</button></div>';
+
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('open');
+
+  // Commission calc — runs AFTER HTML is in DOM
+  if (type === 'commissions') {
+    setTimeout(function() {
+      var pEl = document.getElementById('mf_price');
+      var rEl = document.getElementById('mf_rate');
+      var aEl = document.getElementById('mf_amount');
+      if (!pEl || !rEl || !aEl) return;
+      function calc() {
+        var p = parseFloat(pEl.value) || 0;
+        var r = parseFloat(rEl.value) || 0;
+        aEl.value = 'PKR ' + (p * r / 100).toLocaleString();
+      }
+      pEl.addEventListener('input', calc);
+      rEl.addEventListener('input', calc);
+      calc();
+    }, 80);
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  editId = null; editType = null;
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+async function saveItem() {
+  const type = editType;
+  const cfg  = FORMS[type];
+  const d    = {};
+  let ok = true;
+
+  for (var i = 0; i < cfg.fields.length; i++) {
+    var f = cfg.fields[i];
+    if (f.type === 'file') continue;
+    var el = document.getElementById('mf_' + f.id);
+    if (!el) continue;
+    var v = el.value.trim();
+    if (f.req && !v) { showAlert(f.label + ' is required', 'error'); ok = false; break; }
+    d[f.id] = v;
+  }
+  if (!ok) return;
+
+  // Duplicate check
+  if (!editId) {
+    var key = (type === 'properties') ? 'title' : 'name';
+    var nv  = (d[key] || '').toLowerCase();
+    var np  = d.phone || '';
+    var dup = data[type].some(function(item) {
+      if (type === 'properties') return (item.title||'').toLowerCase() === nv;
+      return (item.name||'').toLowerCase() === nv && item.phone === np;
+    });
+    if (dup) return showAlert('Duplicate entry already exists!', 'error');
+  }
+
+  // Commission amount
+  if (type === 'commissions') {
+    d.amount = ((parseFloat(d.price)||0) * (parseFloat(d.rate)||0) / 100).toFixed(0);
+  }
+
+  // Photos upload
+  var fi = document.getElementById('mf_photos');
+  if (fi && fi.files.length > 0) {
+    showAlert('Uploading photos...', 'success');
+    try {
+      var files = Array.from(fi.files).slice(0, 10);
+      var urls  = await Promise.all(files.map(async function(file) {
+        var ref = stor.ref('photos/' + currentUser.uid + '/' + Date.now() + '_' + file.name);
+        await ref.put(file);
+        return ref.getDownloadURL();
+      }));
+      var existing = editId ? ((data.properties.find(function(p){ return p.id===editId; }) || {}).photos || []) : [];
+      d.photos = existing.concat(urls).slice(0, 10);
+    } catch(e) { return showAlert('Upload failed: ' + e.message, 'error'); }
+  } else if (editId && type === 'properties') {
+    var ex2 = data.properties.find(function(p){ return p.id === editId; });
+    if (ex2) d.photos = ex2.photos || [];
+  }
+
+  d.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+  if (!editId) d.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+
+  try {
+    var col = db.collection('users').doc(currentUser.uid).collection(type);
+    if (editId) await col.doc(editId).update(d);
+    else        await col.add(d);
+    showAlert('Saved successfully!', 'success');
+    closeModal();
+  } catch(e) { showAlert('Error: ' + e.message, 'error'); }
+}
+
+async function delItem(type, id) {
+  if (!confirm('Delete this record?')) return;
+  try {
+    await db.collection('users').doc(currentUser.uid).collection(type).doc(id).delete();
+    showAlert('Deleted!', 'success');
+  } catch(e) { showAlert('Error: ' + e.message, 'error'); }
+}
+
+// ===== PDF =====
+function exportPDF() {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF();
+  doc.setFontSize(18); doc.text('Khan Real Estate Agency', 14, 18);
+  doc.setFontSize(11); doc.text('Commission Report — ' + new Date().toLocaleDateString(), 14, 28);
+  var y = 42;
+  doc.setFillColor(37,99,235); doc.rect(14,y-6,182,9,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(10);
+  doc.text('Client',16,y); doc.text('Property',68,y); doc.text('Price',118,y); doc.text('Rate',148,y); doc.text('Commission',165,y);
+  doc.setTextColor(0,0,0); y += 8;
+  var total = 0;
+  data.commissions.forEach(function(c, i) {
+    if (i%2===0){ doc.setFillColor(248,250,252); doc.rect(14,y-5,182,8,'F'); }
+    var amt = parseFloat(c.amount)||0; total += amt;
+    doc.text(String(c.clientName||'').slice(0,22), 16, y);
+    doc.text(String(c.propertyTitle||'').slice(0,22), 68, y);
+    doc.text('PKR '+parseFloat(c.price||0).toLocaleString(), 118, y);
+    doc.text(String(c.rate||0)+'%', 150, y);
+    doc.text('PKR '+amt.toLocaleString(), 165, y);
+    y += 8; if (y > 270){ doc.addPage(); y = 20; }
+  });
+  y += 6;
+  doc.setFillColor(220,252,231); doc.rect(14,y-5,182,9,'F');
+  doc.setTextColor(22,163,74); doc.setFontSize(11);
+  doc.text('Total: PKR ' + total.toLocaleString(), 14, y+1);
+  doc.save('Khan_Real_Estate_Commissions.pdf');
+  showAlert('PDF exported!','success');
+}
+
+// ===== LANGUAGE =====
+function toggleLang() {
+  lang = lang === 'en' ? 'ur' : 'en';
+  document.getElementById('langLabel').textContent = lang === 'en' ? 'اردو' : 'English';
+  document.querySelectorAll('.lbl').forEach(function(el) {
+    var v = el.getAttribute('data-' + lang);
+    if (v) el.textContent = v;
+  });
+}
+
+// ===== ALERT =====
+function showAlert(msg, type) {
+  var b = document.getElementById('alertBox');
+  b.className = (type === 'success') ? 'alert-success' : 'alert-error';
+  b.textContent = msg;
+  b.style.display = 'block';
+  clearTimeout(b._t);
+  b._t = setTimeout(function(){ b.style.display = 'none'; }, 3500);
+}
+
+// ===== UTILS =====
+function esc(s) {
+  return String(s||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
